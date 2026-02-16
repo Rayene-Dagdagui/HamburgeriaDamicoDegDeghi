@@ -1,0 +1,93 @@
+<div class="menu-container">
+  <h1>🍔 Gestione Menu</h1>
+
+  <div class="menu-header">
+    <div class="filter-section">
+      <label for="category-select">Categoria:</label>
+      <select [(ngModel)]="selectedCategory" (change)="onCategoryChange()" id="category-select">
+        <option value="all">Tutte</option>
+        <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+      </select>
+    </div>
+
+    <button (click)="openForm()" class="btn-add">+ Aggiungi Prodotto</button>
+  </div>
+
+  <div *ngIf="error" class="error-message">{{ error }}</div>
+
+  <div *ngIf="loading" class="loading">Caricamento prodotti...</div>
+
+  <!-- Form Modal -->
+  <div *ngIf="showForm" class="modal-overlay" (click)="closeForm()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <span class="close-btn" (click)="closeForm()">&times;</span>
+      <h2>{{ formData.id ? 'Modifica Prodotto' : 'Aggiungi Prodotto' }}</h2>
+
+      <form (ngSubmit)="saveProduct()">
+        <div class="form-group">
+          <label for="name">Nome *</label>
+          <input type="text" id="name" [(ngModel)]="formData.name" name="name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Descrizione</label>
+          <textarea id="description" [(ngModel)]="formData.description" name="description"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="price">Prezzo (€) *</label>
+            <input type="number" id="price" [(ngModel)]="formData.price" name="price" step="0.01" required>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Categoria *</label>
+            <select id="category" [(ngModel)]="formData.category" name="category" required>
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="image_url">URL Immagine</label>
+          <input type="text" id="image_url" [(ngModel)]="formData.image_url" name="image_url">
+        </div>
+
+        <button type="submit" class="btn-save">Salva</button>
+        <button type="button" (click)="closeForm()" class="btn-cancel">Annulla</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Prodotti Grid -->
+  <div class="products-grid">
+    <div *ngFor="let product of getFilteredProducts()" class="product-card">
+      <div class="product-image" *ngIf="product.image_url">
+        <img [src]="product.image_url" [alt]="product.name">
+      </div>
+      <div class="product-image no-image" *ngIf="!product.image_url">
+        🖼️ No Image
+      </div>
+
+      <div class="product-info">
+        <h3>{{ product.name }}</h3>
+        <p class="description">{{ product.description }}</p>
+        <p class="category">{{ product.category }}</p>
+      </div>
+
+      <div class="product-footer">
+        <span class="price">€{{ product.price }}</span>
+        <div class="actions">
+          <button (click)="openForm(product)" class="btn-edit">✏️ Modifica</button>
+          <button (click)="deleteProduct(product.id)" class="btn-delete">🗑️ Elimina</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="getFilteredProducts().length === 0 && !loading" class="empty-state">
+    Nessun prodotto trovato
+  </div>
+
+  <a href="/dashboard" class="back-button">← Torna al Dashboard</a>
+</div>

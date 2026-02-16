@@ -1,0 +1,236 @@
+✅ QUICK PRE-LAUNCH CHECKLIST
+════════════════════════════════════════════════════════════════
+
+Prima di avviare il sistema, verifica che TUTTO sia a posto.
+Esegui questo checklist veloce (2 minuti):
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 1: AIVEN CREDENTIALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Hai creato il file .env?
+  $ cat .env
+  
+Se vedi questo, SEI PRONTO:
+  DB_HOST=xxxxx-xxxx.aivencloud.com
+  DB_USER=avnadmin
+  DB_PASSWORD=xxxxx
+  DB_NAME=hamburgheria
+  DB_PORT=12345
+  
+Se MANCA il file:
+  $ cp .env.example .env
+  Poi leggi AIVEN_SETUP.md per riempirlo
+
+☐ .env file exists    [oppure → cp .env.example .env]
+☐ DB_HOST compilato   [→ prendi da https://console.aiven.io]
+☐ DB_USER compilato   [→ con Aiven è "avnadmin"]
+☐ DB_PASSWORD compilato [→ la password che hai scelto]
+☐ DB_NAME compilato   [→ il database che hai creato]
+☐ DB_PORT compilato   [→ solitamente 12345 o 13306]
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 2: PYTHON ENVIRONMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+È installato Python >= 3.9?
+  $ python --version
+  # Dovrebbe dire: Python 3.x.x
+
+Sono installate le dipendenze Flask?
+  $ pip list | grep Flask
+  # Dovrebbe dire:
+  #   Flask 3.0.0
+  #   PyMySQL 1.1.0
+  #   python-dotenv 1.0.0
+
+Se NON sono presenti, installa:
+  $ pip install -r requirements.txt
+
+☐ Python 3.9+ installato
+☐ pip install -r requirements.txt completed
+☐ Flask, PyMySQL, dotenv installati
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 3: NODE.JS / ANGULAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+È installato Node.js >= 18?
+  $ node --version
+  # Dovrebbe dire: v18.x.x o superiore
+
+Sono installate le dipendenze Angular?
+  $ cd angularStaff && npm list | head -20
+  # Se vedi molti package = OK
+
+Se NON sono presenti, installa:
+  $ cd angularStaff && npm install
+
+☐ Node.js 18+ installato
+☐ cd angularStaff && npm install completed
+☐ node_modules folder esiste in angularStaff/
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 4: FLUTTER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+È installato Flutter >= 3.11?
+  $ flutter --version
+  # Dovrebbe dire: Flutter 3.11.0 o superiore
+
+È disponibile Chrome per web?
+  $ which google-chrome || which chromium-browser
+  # Dovrebbe findare il browser
+
+Sono installate le dipendenze Flutter?
+  $ cd fluttertotem && flutter pub get
+  # Si dovrebbe completare senza errori
+
+☐ Flutter 3.11+ installato
+☐ cd fluttertotem && flutter pub get completed
+☐ Dart SDK 3.1+ installato (automatico con Flutter)
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 5: PORTE DISPONIBILI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Le porte per i 3 server sono libere?
+
+Verifica:
+  $ lsof -i :5000    # Flask - non deve rispondere
+  $ lsof -i :4200    # Angular - non deve rispondere
+  $ lsof -i :8000    # Flutter web - non deve rispondere
+
+Se una risponde, killer il processo:
+  $ kill -9 PID
+
+Oppure cambia le porte nel codice.
+
+☐ Port 5000 libera (Flask)
+☐ Port 4200 libera (Angular)
+☐ Port 8000+ libera (Flutter web)
+
+════════════════════════════════════════════════════════════════
+
+📋 PASSO 6: CONNESSIONE INTERNET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Sei connesso a internet?
+  $ ping google.com -c 1
+
+Riesci a raggiungere Aiven?
+  $ ping xxxx-xxxx.aivencloud.com
+  # Sostituisci con il tuo HOST da .env
+
+Se non ping, ma il DB funziona lo stesso, no problem.
+
+☐ Internet connesso
+☐ Aiven database raggiungibile
+
+════════════════════════════════════════════════════════════════
+
+✨ SE TUTTO OK, INIZIA COSÌ:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Apri 3 TERMINALI separati e esegui in ordine:
+
+TERMINALE 1 - FLASK BACKEND:
+  $ cd /workspaces/HamburgeriaDamicoDegDeghi
+  $ python app.py
+  
+  Aspetta questo output:
+    ✓ Connesso a database MySQL
+    Running on http://0.0.0.0:5000
+
+
+TERMINALE 2 - ANGULAR STAFF PANEL:
+  $ cd /workspaces/HamburgeriaDamicoDegDeghi/angularStaff
+  $ npm start
+  
+  Aspetta questo output:
+    ✔ Compiled successfully
+    ➜ http://localhost:4200/
+
+
+TERMINALE 3 - FLUTTER TOTEM:
+  $ cd /workspaces/HamburgeriaDamicoDegDeghi/fluttertotem
+  $ flutter run -d chrome
+  
+  Aspetta che si apra il browser con l'app
+
+
+QUANDO TUTTI E 3 SONO AVVIATI:
+
+1. Apri http://localhost:4200 (Staff Panel)
+   - Dovresti vedere: Dashboard, Orders, Menu menu
+   
+2. Apri http://localhost:XXXX (Flutter)
+   - Dovresti vedere: "HAMBURGHERIA DAMICO"
+   
+3. Test completo:
+   - Click "INIZIA ORDINE" in Flutter
+   - Seleziona un prodotto
+   - Aggiungi al carrello
+   - Conferma ordine
+   - Apri Staff Panel → Orders
+   - Dovresti vedere il nuovo ordine
+
+════════════════════════════════════════════════════════════════
+
+🆘 ERRORI COMUNI
+
+ERR: "ModuleNotFoundError: No module named 'flask'"
+→ Soluzione: pip install flask
+
+ERR: "Port 5000 already in use"
+→ Soluzione: kill -9 $(lsof -t -i :5000)
+→ Oppure: python app.py --port 5001
+
+ERR: "Error: ENOENT: no such file or directory '.env'"
+→ Soluzione: cp .env.example .env
+→ Soluzione: Riempi le credenziali Aiven
+
+ERR: "npm: command not found"
+→ Soluzione: installa Node.js da https://nodejs.org
+
+ERR: "flutter: command not found"
+→ Soluzione: installa Flutter e aggiungi al PATH
+
+═════════════════════════════════════════════════════════════════
+
+⏰ TEMPO STIMATO
+
+Checklist:           5 minuti
+Setup credenziali:  5 minuti
+Avvio 3 server:    2 minuti
+Test primo ordine: 3 minuti
+
+TOTALE:            ~15 minuti per avere il sistema live
+
+═════════════════════════════════════════════════════════════════
+
+🎯 GOAL FINALE
+
+✅ Flask Backend running on localhost:5000
+✅ Angular Staff running on localhost:4200
+✅ Flutter Totem running on localhost:8000+
+✅ Tutti connessi a MySQL Aiven
+✅ Cliente può ordinare (Flutter)
+✅ Staff può vedere ordini (Angular)
+✅ Ordini salvati su database
+
+BAM! Sistema live! 🚀
+
+═════════════════════════════════════════════════════════════════
+
+Domande? Leggi:
+- INDICE.md          (mappa di tutto)
+- CODICE_SPIEGATO.md (spiega tutto il codice)
+- START_HERE.sh      (guida step-by-step)
+
+Buona fortuna! 💪

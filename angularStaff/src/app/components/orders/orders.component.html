@@ -1,0 +1,60 @@
+<div class="orders-container">
+  <h1>📋 Gestione Ordini</h1>
+
+  <div class="filter-section">
+    <label for="status-select">Filtra per stato:</label>
+    <select [(ngModel)]="selectedStatus" (change)="onStatusChange()" id="status-select">
+      <option value="">Tutti</option>
+      <option value="pending">⏳ In Attesa</option>
+      <option value="preparing">👨‍🍳 In Preparazione</option>
+      <option value="ready">✅ Pronto</option>
+      <option value="delivered">🎉 Consegnato</option>
+    </select>
+  </div>
+
+  <div *ngIf="error" class="error-message">{{ error }}</div>
+
+  <div *ngIf="loading" class="loading">Caricamento ordini...</div>
+
+  <div class="orders-grid">
+    <div *ngFor="let order of orders" class="order-card" [ngClass]="order.status">
+      <div class="order-card-header" (click)="toggleExpandOrder(order.id)">
+        <div class="order-info">
+          <h3>{{ order.order_number }}</h3>
+          <span class="order-time">{{ order.created_at | date: 'HH:mm:ss' }}</span>
+        </div>
+        <div class="order-price">€{{ order.total_price }}</div>
+      </div>
+
+      <div *ngIf="expandedOrderId === order.id" class="order-details">
+        <h4>Articoli:</h4>
+        <ul>
+          <li *ngFor="let item of order.items">
+            <span class="item-name">{{ item.name }}</span>
+            <span class="item-qty">x{{ item.quantity }}</span>
+            <span class="item-price">€{{ item.price }}</span>
+          </li>
+        </ul>
+
+        <div class="order-actions">
+          <div class="status-display">
+            Stato: <strong>{{ getStatusLabel(order.status) }}</strong>
+          </div>
+          
+          <button 
+            *ngIf="order.status !== 'delivered' && order.status !== 'cancelled'"
+            (click)="updateOrderStatus(order.id, getNextStatus(order.status))"
+            class="btn-action">
+            → {{ getStatusLabel(getNextStatus(order.status)) }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="orders.length === 0 && !loading" class="empty-state">
+    Nessun ordine trovato
+  </div>
+
+  <a href="/dashboard" class="back-button">← Torna al Dashboard</a>
+</div>
