@@ -12,20 +12,30 @@ import { FlaskServiceService } from '../../services/flask-service.service';
 })
 export class MenuComponent implements OnInit {
   products: any[] = [];
-  categories: string[] = [];
-  selectedCategory = 'all';
+  categories: any[] = [];
+  selectedCategoryId: number | null = null;
   loading = false;
   error = '';
-  showForm = false;
-
+  
   // Form per aggiungere/modificare prodotto
+  showProductForm = false;
   formData = {
     id: null,
     name: '',
     description: '',
     price: 0,
-    category: '',
+    category_id: null,
     image_url: ''
+  };
+
+  // Form per aggiungere/modificare categoria
+  showCategoryForm = false;
+  categoryFormData = {
+    id: null,
+    name: '',
+    description: '',
+    icon: '🍔',
+    order_position: 0
   };
 
   constructor(private flaskService: FlaskServiceService) {}
@@ -35,17 +45,85 @@ export class MenuComponent implements OnInit {
     this.loadAllProducts();
   }
 
+  // ======== CATEGORIE ========
+
   loadCategories() {
-    this.flaskService.getCategories().subscribe({
+    this.flaskService.getAllCategories().subscribe({
       next: (response) => {
         this.categories = response.data;
-        if (this.categories.length > 0 && !this.selectedCategory) {
-          this.selectedCategory = this.categories[0];
+        if (this.categories.length > 0 && !this.selectedCategoryId) {
+          this.selectedCategoryId = this.categories[0].id;
         }
       },
       error: (err) => console.error('Errore caricamento categorie', err)
     });
   }
+
+  openCategoryForm(category: any = null) {
+    if (category) {
+      this.categoryFormData = { ...category };
+    } else {
+      this.categoryFormData = {
+        id: null,
+        name: '',
+        description: '',
+        icon: '🍔',
+        order_position: this.categories.length
+      };
+    }
+    this.showCategoryForm = true;
+  }
+
+  closeCategoryForm() {
+    this.showCategoryForm = false;
+  }
+
+  saveCategory() {
+    if (!this.categoryFormData.name) {
+      this.error = 'Il nome della categoria è obbligatorio';
+      return;
+    }
+
+    if (this.categoryFormData.id) {
+      // Aggiorna categoria
+      this.flaskService.updateCategory(this.categoryFormData.id, this.categoryFormData).subscribe({
+        next: (response) => {
+          this.loadCategories();
+          this.closeCategoryForm();
+        },
+        error: (err) => {
+          this.error = 'Errore aggiornamento categoria';
+        }
+      });
+    } else {
+      // Crea nuova categoria
+      this.flaskService.createCategory(this.categoryFormData).subscribe({
+        next: (response) => {
+          this.loadCategories();
+          this.closeCategoryForm();
+        },
+        error: (err) => {
+          this.error = 'Errore creazione categoria';
+        }
+      });
+    }
+  }
+
+  deleteCategory(categoryId: number) {
+    if (confirm('Sei sicuro di voler eliminare questa categoria?')) {
+      this.flaskService.deleteCategory(categoryId).subscribe({
+        next: (response) => {
+          this.loadCategories();
+          this.loadAllProducts();
+        },
+        error: (err) => {
+          this.error = 'Errore eliminazione categoria';
+        }
+      });
+    }
+  }
+
+  // ======== PRODOTTI ========
 
   loadAllProducts() {
     this.loading = true;
@@ -62,16 +140,16 @@ export class MenuComponent implements OnInit {
   }
 
   onCategoryChange() {
-    if (this.selectedCategory === 'all') {
+    if (this.selectedCategoryId === null) {
       this.loadAllProducts();
     } else {
-      this.loadProductsByCategory(this.selectedCategory);
+      this.loadProductsByCategory(this.selectedCategoryId);
     }
   }
 
-  loadProductsByCategory(category: string) {
+  loadProductsByCategory(categoryId: number) {
     this.loading = true;
-    this.flaskService.getProductsByCategory(category).subscribe({
+    this.flaskService.getProductsByCategory(categoryId).subscribe({
       next: (response) => {
         this.products = response.data;
         this.loading = false;
@@ -83,7 +161,7 @@ export class MenuComponent implements OnInit {
     });
   }
 
-  openForm(product: any = null) {
+  openProductForm(product: any = null) {
     if (product) {
       this.formData = { ...product };
     } else {
@@ -92,19 +170,19 @@ export class MenuComponent implements OnInit {
         name: '',
         description: '',
         price: 0,
-        category: this.categories[0] || '',
+        category_id: this.selectedCategoryId || (this.categories[0]?.id || null),
         image_url: ''
       };
     }
-    this.showForm = true;
+    this.showProductForm = true;
   }
 
-  closeForm() {
-    this.showForm = false;
+  closeProductForm() {
+    this.showProductForm = false;
   }
 
   saveProduct() {
-    if (!this.formData.name || !this.formData.price || !this.formData.category) {
+    if (!this.formData.name || !this.formData.price || !this.formData.category_id) {
       this.error = 'Compila tutti i campi obbligatori';
       return;
     }
@@ -114,7 +192,7 @@ export class MenuComponent implements OnInit {
       this.flaskService.updateProduct(this.formData.id, this.formData).subscribe({
         next: (response) => {
           this.loadAllProducts();
-          this.closeForm();
+          this.closeProductForm();
         },
         error: (err) => {
           this.error = 'Errore aggiornamento prodotto';
@@ -125,7 +203,7 @@ export class MenuComponent implements OnInit {
       this.flaskService.createProduct(this.formData).subscribe({
         next: (response) => {
           this.loadAllProducts();
-          this.closeForm();
+          this.closeProductForm();
         },
         error: (err) => {
           this.error = 'Errore creazione prodotto';
@@ -148,9 +226,19 @@ export class MenuComponent implements OnInit {
   }
 
   getFilteredProducts(): any[] {
-    if (this.selectedCategory === 'all') {
+    if (this.selectedCategoryId === null) {
       return this.products;
     }
-    return this.products.filter(p => p.category === this.selectedCategory);
+    return this.products.filter(p => p.category_id === this.selectedCategoryId);
+  }
+
+  getCategoryName(categoryId: number): string {
+    const category = this.categories.find(c => c.id === categoryId);
+    return category ? category.name : 'Sconosciuta';
+  }
+
+  getCategoryIcon(categoryId: number): string {
+    const category = this.categories.find(c => c.id === categoryId);
+    return category ? category.icon : '🍔';
   }
 }

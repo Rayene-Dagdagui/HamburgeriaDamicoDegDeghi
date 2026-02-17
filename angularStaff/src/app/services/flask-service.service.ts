@@ -28,18 +28,36 @@ export class FlaskServiceService {
     return this.http.put(`${this.apiUrl}/orders/${orderId}/status`, { status });
   }
 
+  // ============ CATEGORIE ============
+
+  getAllCategories(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/categories`);
+  }
+
+  getCategory(categoryId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/categories/${categoryId}`);
+  }
+
+  createCategory(category: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/categories`, category);
+  }
+
+  updateCategory(categoryId: number, category: any): Observable<any> {
+    return this.http.put(`${this.apiUrl}/categories/${categoryId}`, category);
+  }
+
+  deleteCategory(categoryId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/categories/${categoryId}`);
+  }
+
   // ============ PRODOTTI ============
 
   getAllProducts(): Observable<any> {
     return this.http.get(`${this.apiUrl}/products`);
   }
 
-  getCategories(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/categories`);
-  }
-
-  getProductsByCategory(category: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/products/category/${category}`);
+  getProductsByCategory(categoryId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/products/category/${categoryId}`);
   }
 
   getProduct(productId: number): Observable<any> {

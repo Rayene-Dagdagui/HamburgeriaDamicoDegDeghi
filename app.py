@@ -28,6 +28,7 @@ def before_request():
     if not db.connection:
         db.connect()
         # Inizializza tabelle se non esistono
+        db.init_categories_table()
         db.init_products_table()
         db.init_orders_table()
         db.init_order_items_table()
@@ -55,11 +56,11 @@ def get_products():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-@app.route('/api/products/category/<category>', methods=['GET'])
-def get_products_by_category(category):
+@app.route('/api/products/category/<int:category_id>', methods=['GET'])
+def get_products_by_category(category_id):
     """Ritorna i prodotti di una categoria specifica"""
     try:
-        products = db.get_products_by_category(category)
+        products = db.get_products_by_category(category_id)
         return jsonify({
             'status': 'success',
             'data': products,
@@ -69,11 +70,13 @@ def get_products_by_category(category):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+# ==================== CATEGORIE ====================
+
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
     """Ritorna tutte le categorie disponibili"""
     try:
-        categories = db.get_categories()
+        categories = db.get_all_categories()
         return jsonify({
             'status': 'success',
             'data': categories,
@@ -81,6 +84,100 @@ def get_categories():
         }), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/categories/<int:category_id>', methods=['GET'])
+def get_category(category_id):
+    """Ritorna una categoria per ID"""
+    try:
+        category = db.get_category_by_id(category_id)
+        if not category:
+            return jsonify({'status': 'error', 'message': 'Categoria non trovata'}), 404
+        return jsonify({
+            'status': 'success',
+            'data': category
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/categories', methods=['POST'])
+def create_category():
+    """Crea una nuova categoria (Solo staff)"""
+    try:
+        data = request.get_json()
+        
+        # Validazione
+        if not data or 'name' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Campo obbligatorio: name'
+            }), 400
+
+        category_id = db.add_category(
+            name=data['name'],
+            description=data.get('description', None),
+            icon=data.get('icon', None),
+            order_position=data.get('order_position', 0)
+        )
+
+        if category_id == -1:
+            return jsonify({'status': 'error', 'message': 'Errore creazione categoria'}), 500
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Categoria creata con successo',
+            'category_id': category_id
+        }), 201
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/categories/<int:category_id>', methods=['PUT'])
+def update_category(category_id):
+    """Aggiorna una categoria (Solo staff)"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Nessun dato fornito'}), 400
+
+        success = db.update_category(
+            category_id=category_id,
+            name=data.get('name'),
+            description=data.get('description'),
+            icon=data.get('icon'),
+            order_position=data.get('order_position')
+        )
+
+        if not success:
+            return jsonify({'status': 'error', 'message': 'Errore aggiornamento categoria'}), 500
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Categoria aggiornata con successo'
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
+def delete_category(category_id):
+    """Elimina una categoria (Solo staff)"""
+    try:
+        success = db.delete_category(category_id)
+        if not success:
+            return jsonify({'status': 'error', 'message': 'Errore eliminazione categoria'}), 500
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Categoria eliminata con successo'
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+# ==================== PRODOTTI ====================
 
 
 @app.route('/api/products/<int:product_id>', methods=['GET'])
@@ -105,17 +202,17 @@ def create_product():
         data = request.get_json()
         
         # Validazione
-        if not data or not all(k in data for k in ['name', 'price', 'category']):
+        if not data or not all(k in data for k in ['name', 'price', 'category_id']):
             return jsonify({
                 'status': 'error',
-                'message': 'Campi obbligatori: name, price, category'
+                'message': 'Campi obbligatori: name, price, category_id'
             }), 400
 
         product_id = db.add_product(
             name=data['name'],
             description=data.get('description', ''),
             price=float(data['price']),
-            category=data['category'],
+            category_id=int(data['category_id']),
             image_url=data.get('image_url', None)
         )
 
@@ -145,7 +242,7 @@ def update_product(product_id):
             name=data.get('name'),
             description=data.get('description'),
             price=data.get('price'),
-            category=data.get('category'),
+            category_id=int(data.get('category_id')) if data.get('category_id') else None,
             image_url=data.get('image_url')
         )
 
@@ -316,6 +413,7 @@ def internal_error(e):
 if __name__ == '__main__':
     try:
         db.connect()
+        db.init_categories_table()
         db.init_products_table()
         db.init_orders_table()
         db.init_order_items_table()

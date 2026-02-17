@@ -58,6 +58,23 @@ h1 {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+.btn-add-category {
+  padding: 0.75rem 1.5rem;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-add-category:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  background: #45a049;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -312,4 +329,101 @@ h1 {
 .back-button:hover {
   background: white;
   transform: translateY(-2px);
+}
+/* Categorie Management */
+.categories-management {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.categories-management h3 {
+  margin-top: 0;
+  color: #4caf50;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.categories-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.category-item {
+  background: #f9f9f9;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.category-item:hover {
+  border-color: #4caf50;
+  background: #f0f8f0;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.category-icon {
+  font-size: 2rem;
+  min-width: 50px;
+  text-align: center;
+}
+
+.category-info h4 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.category-desc {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.category-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.category-actions .btn-edit,
+.category-actions .btn-delete {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+/* Product Header */
+.product-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.product-category-icon {
+  font-size: 1.2rem;
+}
+
+.product-category {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
 }

@@ -74,6 +74,78 @@ class DatabaseWrapper:
             print(f"✗ Errore aggiornamento: {e}")
             return False
 
+    # ==================== CATEGORIE ====================
+    
+    def init_categories_table(self) -> None:
+        """Crea la tabella categorie se non esiste"""
+        query = """
+        CREATE TABLE IF NOT EXISTS categories (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(100) NOT NULL UNIQUE,
+            description TEXT,
+            icon VARCHAR(50),
+            order_position INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        self.execute_update(query)
+
+    def add_category(self, name: str, description: str = None, icon: str = None, order_position: int = 0) -> int:
+        """Aggiunge una nuova categoria"""
+        query = """
+        INSERT INTO categories (name, description, icon, order_position)
+        VALUES (%s, %s, %s, %s)
+        """
+        return self.execute_insert(query, (name, description, icon, order_position))
+
+    def update_category(self, category_id: int, name: str = None, description: str = None, 
+                       icon: str = None, order_position: int = None) -> bool:
+        """Aggiorna una categoria"""
+        updates = []
+        params = []
+        
+        if name:
+            updates.append("name = %s")
+            params.append(name)
+        if description is not None:
+            updates.append("description = %s")
+            params.append(description)
+        if icon is not None:
+            updates.append("icon = %s")
+            params.append(icon)
+        if order_position is not None:
+            updates.append("order_position = %s")
+            params.append(order_position)
+
+        if not updates:
+            return False
+
+        params.append(category_id)
+        query = f"UPDATE categories SET {', '.join(updates)} WHERE id = %s"
+        return self.execute_update(query, tuple(params))
+
+    def delete_category(self, category_id: int) -> bool:
+        """Elimina una categoria"""
+        query = "DELETE FROM categories WHERE id = %s"
+        return self.execute_update(query, (category_id,))
+
+    def get_all_categories(self) -> List[Dict]:
+        """Ritorna tutte le categorie ordinate per posizione"""
+        query = "SELECT * FROM categories ORDER BY order_position, name"
+        return self.execute_query(query)
+
+    def get_category_by_id(self, category_id: int) -> Optional[Dict]:
+        """Ritorna una categoria per ID"""
+        query = "SELECT * FROM categories WHERE id = %s"
+        result = self.execute_query(query, (category_id,))
+        return result[0] if result else None
+
+    def get_category_by_name(self, name: str) -> Optional[Dict]:
+        """Ritorna una categoria per nome"""
+        query = "SELECT * FROM categories WHERE name = %s"
+        result = self.execute_query(query, (name,))
+        return result[0] if result else None
+
     # ==================== PRODOTTI ====================
     
     def init_products_table(self) -> None:
@@ -84,41 +156,59 @@ class DatabaseWrapper:
             name VARCHAR(100) NOT NULL,
             description TEXT,
             price DECIMAL(10, 2) NOT NULL,
-            category VARCHAR(50) NOT NULL,
+            category_id INT NOT NULL,
             image_url VARCHAR(255),
             available BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories(id)
         )
         """
         self.execute_update(query)
 
     def get_all_products(self) -> List[Dict]:
-        """Ritorna tutti i prodotti"""
-        query = "SELECT * FROM products WHERE available = TRUE ORDER BY category, name"
+        """Ritorna tutti i prodotti con info categoria"""
+        query = """
+        SELECT p.*, c.name as category_name, c.icon 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.available = TRUE 
+        ORDER BY c.order_position, c.name, p.name
+        """
         return self.execute_query(query)
 
-    def get_products_by_category(self, category: str) -> List[Dict]:
+    def get_products_by_category(self, category_id: int) -> List[Dict]:
         """Ritorna i prodotti di una categoria"""
-        query = "SELECT * FROM products WHERE category = %s AND available = TRUE ORDER BY name"
-        return self.execute_query(query, (category,))
+        query = """
+        SELECT p.*, c.name as category_name, c.icon 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.category_id = %s AND p.available = TRUE 
+        ORDER BY p.name
+        """
+        return self.execute_query(query, (category_id,))
 
     def get_product_by_id(self, product_id: int) -> Optional[Dict]:
-        """Ritorna un prodotto per ID"""
-        query = "SELECT * FROM products WHERE id = %s"
+        """Ritorna un prodotto per ID con info categoria"""
+        query = """
+        SELECT p.*, c.name as category_name, c.icon 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.id = %s
+        """
         result = self.execute_query(query, (product_id,))
         return result[0] if result else None
 
     def add_product(self, name: str, description: str, price: float, 
-                   category: str, image_url: str = None) -> int:
+                   category_id: int, image_url: str = None) -> int:
         """Aggiunge un nuovo prodotto"""
         query = """
-        INSERT INTO products (name, description, price, category, image_url)
+        INSERT INTO products (name, description, price, category_id, image_url)
         VALUES (%s, %s, %s, %s, %s)
         """
-        return self.execute_insert(query, (name, description, price, category, image_url))
+        return self.execute_insert(query, (name, description, price, category_id, image_url))
 
     def update_product(self, product_id: int, name: str = None, description: str = None,
-                      price: float = None, category: str = None, image_url: str = None) -> bool:
+                      price: float = None, category_id: int = None, image_url: str = None) -> bool:
         """Aggiorna un prodotto"""
         updates = []
         params = []
@@ -132,9 +222,9 @@ class DatabaseWrapper:
         if price:
             updates.append("price = %s")
             params.append(price)
-        if category:
-            updates.append("category = %s")
-            params.append(category)
+        if category_id is not None:
+            updates.append("category_id = %s")
+            params.append(category_id)
         if image_url is not None:
             updates.append("image_url = %s")
             params.append(image_url)
@@ -252,11 +342,3 @@ class DatabaseWrapper:
         """Elimina un ordine e i suoi item"""
         query = "DELETE FROM orders WHERE id = %s"
         return self.execute_update(query, (order_id,))
-
-    # ==================== CATEGORIE ====================
-
-    def get_categories(self) -> List[str]:
-        """Ritorna tutti i nomi delle categorie univoci"""
-        query = "SELECT DISTINCT category FROM products WHERE available = TRUE ORDER BY category"
-        results = self.execute_query(query)
-        return [r['category'] for r in results]
