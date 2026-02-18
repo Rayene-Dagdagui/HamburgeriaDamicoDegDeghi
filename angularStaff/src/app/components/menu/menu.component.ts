@@ -59,18 +59,12 @@ export class MenuComponent implements OnInit {
     });
   }
 
-  openCategoryForm(category: any = null) {
-    if (category) {
-      this.categoryFormData = { ...category };
-    } else {
-      this.categoryFormData = {
-        id: null,
-        name: '',
-        description: '',
-        icon: '🍔',
-        order_position: this.categories.length
-      };
+  openCategoryForm(category: any) {
+    // apri il modulo soltanto per modifica; l'interfaccia non permette la creazione
+    if (!category) {
+      return; // ignoriamo
     }
+    this.categoryFormData = { ...category };
     this.showCategoryForm = true;
   }
 
@@ -85,7 +79,7 @@ export class MenuComponent implements OnInit {
     }
 
     if (this.categoryFormData.id) {
-      // Aggiorna categoria
+      // Aggiorna categoria esistente
       this.flaskService.updateCategory(this.categoryFormData.id, this.categoryFormData).subscribe({
         next: (response) => {
           this.loadCategories();
@@ -96,16 +90,8 @@ export class MenuComponent implements OnInit {
         }
       });
     } else {
-      // Crea nuova categoria
-      this.flaskService.createCategory(this.categoryFormData).subscribe({
-        next: (response) => {
-          this.loadCategories();
-          this.closeCategoryForm();
-        },
-        error: (err) => {
-          this.error = 'Errore creazione categoria';
-        }
-      });
+      // non dovrebbe capitare perché l'interfaccia non permette creazione
+      this.error = 'Creazione di nuove categorie non consentita';
     }
   }
 

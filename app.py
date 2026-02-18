@@ -103,7 +103,11 @@ def get_category(category_id):
 
 @app.route('/api/categories', methods=['POST'])
 def create_category():
-    """Crea una nuova categoria (Solo staff)"""
+    """Crea una nuova categoria (Solo staff).
+
+    Nota: l'interfaccia grafica non espone più il pulsante di creazione, la rotta
+    rimane disponibile per script o popolazioni iniziali automatiche.
+    """
     try:
         data = request.get_json()
         
@@ -418,7 +422,48 @@ if __name__ == '__main__':
         db.init_orders_table()
         db.init_order_items_table()
         print("✓ Database inizializzato")
-        
+
+        # inserisce categorie e prodotti d'esempio se il DB è vuoto
+        def seed_initial_data():
+            # list of default categories we want present in the system
+            defaults = [
+                {'name':'Hamburger', 'description':'Panini classici', 'icon':'🍔'},
+                {'name':'Bevande', 'description':'Bibite e altro', 'icon':'🥤'},
+                {'name':'Contorni', 'description':'Patatine, etc.', 'icon':'🍟'},
+                {'name':'Panini speciali', 'description':'Creazioni uniche', 'icon':'🥪'},
+                {'name':'Dessert', 'description':'Dolci e gelati', 'icon':'🍨'}
+            ]
+
+            existing = {c['name'] for c in db.get_all_categories()}
+            added = 0
+            for idx, cat in enumerate(defaults, start=1):
+                if cat['name'] not in existing:
+                    db.add_category(name=cat['name'], description=cat['description'], icon=cat['icon'], order_position=idx)
+                    added += 1
+            if added:
+                print(f"→ Aggiunte {added} categorie di default")
+            else:
+                print("→ Tutte le categorie di default sono già presenti, salto seed")
+
+            prods = db.get_all_products()
+            if not prods:
+                print("→ Aggiungo alcuni prodotti di esempio")
+                # recupera id categorie appena create
+                hamburgers = db.get_category_by_name('Hamburger')
+                drinks = db.get_category_by_name('Bevande')
+                sides = db.get_category_by_name('Contorni')
+                if hamburgers:
+                    db.add_product(name='Classic Burger', description='Carne, lattuga, pomodoro', price=5.99, category_id=hamburgers['id'])
+                    db.add_product(name='Cheese Burger', description='Con formaggio extra', price=6.99, category_id=hamburgers['id'])
+                if drinks:
+                    db.add_product(name='Coca Cola', description='Lattina 33cl', price=2.50, category_id=drinks['id'])
+                if sides:
+                    db.add_product(name='Patatine fritte', description='Porzione media', price=3.00, category_id=sides['id'])
+            else:
+                print(f"→ {len(prods)} prodotti già presenti, salto seed")
+
+        seed_initial_data()
+
         app.run(
             host='0.0.0.0',
             port=os.getenv('FLASK_PORT', 5000),

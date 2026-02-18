@@ -5,6 +5,11 @@ Sistema informatico end-to-end per una hamburgheria con **totem digitale cliente
 ## 📋 Componenti del Sistema
 
 ### 1. **Totem Cliente (Flutter)**
+
+> ⚠️ **Nota importante**: A partire da questa versione il pannello staff non permette più di creare categorie manualmente. Le categorie vengono predisposte automaticamente dal server (e possono comunque essere modificate o eliminate). Il pulsante "+ Nuova Categoria" è stato rimosso dall'interfaccia.
+
+> ⚠️ **Configurazione DB**: il file `.env` viene spesso rigenerato o cancellato nel container di sviluppo, quindi potrebbe non conservare le credenziali. Usa `.env.example` come modello oppure esporta le variabili d'ambiente direttamente (`export DB_HOST=...`).
+
 App mobile/touch per clienti in hamburgheria:
 - 📱 Consultare il menu con categorie
 - 🛒 Aggiungere prodotti al carrello
@@ -55,10 +60,17 @@ DB_PASSWORD=your-super-secure-password-here
 DB_NAME=hamburgeriadb
 DB_PORT=21711
 
+# (optional) If Aiven requires SSL, add paths to the certificate files
+# DB_SSL_CA=/path/to/ca.pem
+# DB_SSL_CERT=/path/to/client-cert.pem
+# DB_SSL_KEY=/path/to/client-key.pem
+
 # Flask Configuration
 FLASK_ENV=development
 FLASK_PORT=5000
 ```
+
+Se la connessione al server MySQL non riesce (es. l'istanza non è raggiungibile da questa rete) il backend effettua automaticamente un *fallback* su un database SQLite locale (`local.db`), permettendo comunque di sviluppare e testare l'applicazione offline.
 
 **Come ottenerle da Aiven:**
 1. Vai su https://console.aiven.io
@@ -77,6 +89,8 @@ python app.py
 ```
 
 Il backend sarà disponibile su: `http://localhost:5000`
+
+Il server popola automaticamente alcune categorie e prodotti di esempio alla prima esecuzione. Questo permette di utilizzare immediatamente l'app staff e il totem senza dover inserire manualmente dati.
 
 ### 3. Pannello Angular Staff
 

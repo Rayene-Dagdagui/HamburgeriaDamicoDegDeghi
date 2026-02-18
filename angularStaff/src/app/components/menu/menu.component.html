@@ -11,7 +11,7 @@
     </div>
 
     <button (click)="openProductForm()" class="btn-add">+ Aggiungi Prodotto</button>
-    <button (click)="openCategoryForm()" class="btn-add-category">+ Nuova Categoria</button>
+    <!-- nuovo bottone categoria rimosso: creazione gestita automaticamente o non permessa -->
   </div>
 
   <div *ngIf="error" class="error-message">{{ error }}</div>
@@ -22,7 +22,7 @@
   <div *ngIf="showCategoryForm" class="modal-overlay" (click)="closeCategoryForm()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <span class="close-btn" (click)="closeCategoryForm()">&times;</span>
-      <h2>{{ categoryFormData.id ? 'Modifica Categoria' : 'Nuova Categoria' }}</h2>
+      <h2>Modifica Categoria</h2> <!-- solo modifica, creazione non disponibile -->
 
       <form (ngSubmit)="saveCategory()">
         <div class="form-group">

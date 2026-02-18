@@ -16,36 +16,92 @@ class DatabaseWrapper:
         self.password = os.getenv('DB_PASSWORD')
         self.database = os.getenv('DB_NAME')
         self.port = int(os.getenv('DB_PORT', 3306))
+        # optional SSL files for Aiven connections
+        self.ssl_ca = os.getenv('DB_SSL_CA')
+        self.ssl_cert = os.getenv('DB_SSL_CERT')
+        self.ssl_key = os.getenv('DB_SSL_KEY')
+
+        # internal flag if we fell back to sqlite (used for local testing when remote is unreachable)
+        self.use_sqlite = False
         self.connection = None
 
     def connect(self) -> None:
-        """Stabilisce la connessione al database"""
+        """Stabilisce la connessione al database MySQL o (in alternativa) a un file SQLite.
+
+        Se le variabili d'ambiente per l'SSL sono impostate, vengono passate a PyMySQL in un
+        dizionario `ssl` (richiesto da Aiven). Se la connessione MySQL fallisce (ad esempio
+        per problemi di DNS o rete), viene automaticamente usato un database SQLite locale
+        per permettere comunque lo sviluppo e i test offline.
+        """
+        # se l'host non è definito usiamo forzatamente sqlite
+        if not self.host:
+            self._connect_sqlite()
+            return
+
         try:
-            self.connection = pymysql.connect(
-                host=self.host,
-                user=self.user,
-                password=self.password,
-                database=self.database,
-                port=self.port,
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
+            connect_args = {
+                'host': self.host,
+                'user': self.user,
+                'password': self.password,
+                'database': self.database,
+                'port': self.port,
+                'charset': 'utf8mb4',
+                'cursorclass': pymysql.cursors.DictCursor
+            }
+
+            # Aiven MySQL richiede certificati SSL, possiamo passarli se forniti
+            ssl_options = {}
+            if self.ssl_ca:
+                ssl_options['ca'] = self.ssl_ca
+            if self.ssl_cert:
+                ssl_options['cert'] = self.ssl_cert
+            if self.ssl_key:
+                ssl_options['key'] = self.ssl_key
+            if ssl_options:
+                connect_args['ssl'] = ssl_options
+
+            self.connection = pymysql.connect(**connect_args)
             print("✓ Connesso a database MySQL")
         except Exception as e:
-            print(f"✗ Errore connessione database: {e}")
-            raise
+            # fallback a sqlite per non bloccare l'applicazione durante lo sviluppo
+            print(f"✗ Errore connessione MySQL: {e}. utilizzo SQLite di fallback.")
+            self._connect_sqlite()
+
+    def _connect_sqlite(self) -> None:
+        """Configura una connessione SQLite locale semplice (utilizzata in assenza di MySQL)."""
+        import sqlite3
+        self.use_sqlite = True
+        self.connection = sqlite3.connect('local.db')
+        self.connection.row_factory = sqlite3.Row
+        print("✓ Connesso a database SQLite locale")
 
     def disconnect(self) -> None:
         """Chiude la connessione al database"""
         if self.connection:
             self.connection.close()
 
+    def _translate_query(self, query: str) -> str:
+        """Se stiamo usando SQLite converte i placeholder %s in ?"""
+        if self.use_sqlite:
+            # MySQL uses %s, sqlite uses ?
+            return query.replace('%s', '?')
+        return query
+
     def execute_query(self, query: str, params: tuple = ()) -> List[Dict]:
         """Esegue una query SELECT"""
         try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query, params)
-                return cursor.fetchall()
+            if self.use_sqlite:
+                cursor = self.connection.cursor()
+                sqlite_query = self._translate_query(query)
+                cursor.execute(sqlite_query, params)
+                rows = cursor.fetchall()
+                # sqlite3 returns Row objects, convert to dicts
+                result = [dict(r) for r in rows]
+                return result
+            else:
+                with self.connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    return cursor.fetchall()
         except Exception as e:
             print(f"✗ Errore query: {e}")
             return []
@@ -53,24 +109,40 @@ class DatabaseWrapper:
     def execute_insert(self, query: str, params: tuple = ()) -> int:
         """Esegue una query INSERT e ritorna l'ID inserito"""
         try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query, params)
+            if self.use_sqlite:
+                cursor = self.connection.cursor()
+                sqlite_query = self._translate_query(query)
+                cursor.execute(sqlite_query, params)
                 self.connection.commit()
                 return cursor.lastrowid
+            else:
+                with self.connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    self.connection.commit()
+                    return cursor.lastrowid
         except Exception as e:
-            self.connection.rollback()
+            if not self.use_sqlite:
+                self.connection.rollback()
             print(f"✗ Errore inserimento: {e}")
             return -1
 
     def execute_update(self, query: str, params: tuple = ()) -> bool:
         """Esegue una query UPDATE/DELETE"""
         try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query, params)
+            if self.use_sqlite:
+                cursor = self.connection.cursor()
+                sqlite_query = self._translate_query(query)
+                cursor.execute(sqlite_query, params)
                 self.connection.commit()
                 return True
+            else:
+                with self.connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    self.connection.commit()
+                    return True
         except Exception as e:
-            self.connection.rollback()
+            if not self.use_sqlite:
+                self.connection.rollback()
             print(f"✗ Errore aggiornamento: {e}")
             return False
 
@@ -78,16 +150,28 @@ class DatabaseWrapper:
     
     def init_categories_table(self) -> None:
         """Crea la tabella categorie se non esiste"""
-        query = """
-        CREATE TABLE IF NOT EXISTS categories (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            name VARCHAR(100) NOT NULL UNIQUE,
-            description TEXT,
-            icon VARCHAR(50),
-            order_position INT DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
+        if self.use_sqlite:
+            query = """
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                icon TEXT,
+                order_position INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        else:
+            query = """
+            CREATE TABLE IF NOT EXISTS categories (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL UNIQUE,
+                description TEXT,
+                icon VARCHAR(50),
+                order_position INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         self.execute_update(query)
 
     def add_category(self, name: str, description: str = None, icon: str = None, order_position: int = 0) -> int:
@@ -150,19 +234,34 @@ class DatabaseWrapper:
     
     def init_products_table(self) -> None:
         """Crea la tabella prodotti se non esiste"""
-        query = """
-        CREATE TABLE IF NOT EXISTS products (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            price DECIMAL(10, 2) NOT NULL,
-            category_id INT NOT NULL,
-            image_url VARCHAR(255),
-            available BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES categories(id)
-        )
-        """
+        if self.use_sqlite:
+            query = """
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                price REAL NOT NULL,
+                category_id INTEGER NOT NULL,
+                image_url TEXT,
+                available BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+            # note: sqlite enforces foreign keys only if PRAGMA foreign_keys=ON; omit for simplicity
+        else:
+            query = """
+            CREATE TABLE IF NOT EXISTS products (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                price DECIMAL(10, 2) NOT NULL,
+                category_id INT NOT NULL,
+                image_url VARCHAR(255),
+                available BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (category_id) REFERENCES categories(id)
+            )
+            """
         self.execute_update(query)
 
     def get_all_products(self) -> List[Dict]:
@@ -245,31 +344,54 @@ class DatabaseWrapper:
 
     def init_orders_table(self) -> None:
         """Crea la tabella ordini"""
-        query = """
-        CREATE TABLE IF NOT EXISTS orders (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            order_number VARCHAR(50) UNIQUE NOT NULL,
-            total_price DECIMAL(10, 2) NOT NULL,
-            status VARCHAR(50) DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-        """
+        if self.use_sqlite:
+            query = """
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_number TEXT UNIQUE NOT NULL,
+                total_price REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        else:
+            query = """
+            CREATE TABLE IF NOT EXISTS orders (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                order_number VARCHAR(50) UNIQUE NOT NULL,
+                total_price DECIMAL(10, 2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+            """
         self.execute_update(query)
 
     def init_order_items_table(self) -> None:
         """Crea la tabella item degli ordini"""
-        query = """
-        CREATE TABLE IF NOT EXISTS order_items (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            order_id INT NOT NULL,
-            product_id INT NOT NULL,
-            quantity INT NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-            FOREIGN KEY (product_id) REFERENCES products(id)
-        )
-        """
+        if self.use_sqlite:
+            query = """
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                price REAL NOT NULL
+            )
+            """
+        else:
+            query = """
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                order_id INT NOT NULL,
+                product_id INT NOT NULL,
+                quantity INT NOT NULL,
+                price DECIMAL(10, 2) NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+            """
         self.execute_update(query)
 
     def get_all_orders(self) -> List[Dict]:
