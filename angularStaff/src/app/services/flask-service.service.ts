@@ -6,7 +6,11 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class FlaskServiceService {
-  private apiUrl = 'http://localhost:5000/api';
+  // baseUrl is relative so the dev server can proxy to the backend.
+  // when Angular is hosted in GitHub Codespaces the browser's `localhost` refers
+  // to the host machine, not the container. the proxy (see proxy.conf.json)
+  // ensures requests to `/api` are forwarded to the Flask server on port 5000.
+  private apiUrl = 'https://ideal-computing-machine-4jq7jjrj7jxg2q4w7-5000.app.github.dev/api';
 
   constructor(private http: HttpClient) { }
 

@@ -2,7 +2,17 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5000/api';
+  // The URL is injected at compile time.  This lets us build the app with a
+  // relative base path (which works with a proxy) but also override it when
+  // running on a device/emulator where `localhost` refers to the host machine.
+  //
+  // Example runs:
+  //   flutter run -d chrome --dart-define=API_URL=https://...-5000.app.github.dev/api
+  //   flutter run -d emulator --dart-define=API_URL=http://10.0.2.2:5000/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'https://ideal-computing-machine-4jq7jjrj7jxg2q4w7-5000.app.github.dev/api',
+  );
 
   // ============ PRODOTTI ============
 
